@@ -1,17 +1,28 @@
 'use client';
 import { useEffect, useState } from "react";
 import { db } from "../FirebaseProvider";
-import { collection, getDocs, query, where, deleteDoc, doc } from "firebase/firestore";
+import { 
+  collection, 
+  getDocs, 
+  query, 
+  where, 
+  deleteDoc, 
+  doc, 
+  getDoc 
+} from "firebase/firestore";
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function NGOAccounts() {
   const [ngoAccounts, setNgoAccounts] = useState([]);
+  const [filteredAccounts, setFilteredAccounts] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState(null);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState("");
   const router = useRouter();
+
+  // Get username from localStorage
   useEffect(() => {
     const storedUsername = localStorage.getItem('username');
     if (storedUsername) {
@@ -23,18 +34,46 @@ export default function NGOAccounts() {
     fetchNGOAccounts();
   }, []);
 
+  // Fetch NGO accounts from the "users" collection where role == "ngo"
+  // Then, for each account, fetch the corresponding organizationName from "ngo_profiles"
   const fetchNGOAccounts = async () => {
     const usersRef = collection(db, "users");
     const ngoQuery = query(usersRef, where("role", "==", "ngo"));
     const ngoSnapshot = await getDocs(ngoQuery);
-    
-    const ngoList = ngoSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    
+
+    // Map each account and fetch its organization name from ngo_profiles using the document id
+    const ngoList = await Promise.all(
+      ngoSnapshot.docs.map(async (docSnap) => {
+        const account = { id: docSnap.id, ...docSnap.data() };
+        const profileRef = doc(db, "ngo_profiles", account.id);
+        const profileSnap = await getDoc(profileRef);
+        const organizationName = profileSnap.exists() ? profileSnap.data().organizationName : "N/A";
+        return { ...account, organizationName };
+      })
+    );
     setNgoAccounts(ngoList);
+    setFilteredAccounts(ngoList);
   };
+
+  // Filter accounts based on search term
+  useEffect(() => {
+    if (searchTerm.trim() === "") {
+      setFilteredAccounts(ngoAccounts);
+    } else {
+      const lowerSearch = searchTerm.toLowerCase();
+      const filtered = ngoAccounts.filter(account => {
+        // Safely check for undefined or null and provide a fallback to an empty string
+        const orgName = account.organizationName ? account.organizationName.toLowerCase() : '';
+        const email = account.email ? account.email.toLowerCase() : '';
+        const id = account.id ? account.id.toLowerCase() : '';
+        
+        return orgName.includes(lowerSearch) ||
+               email.includes(lowerSearch) ||
+               id.includes(lowerSearch);
+      });
+      setFilteredAccounts(filtered);
+    }
+  }, [searchTerm, ngoAccounts]);
 
   const openDeleteModal = (id) => {
     setAccountToDelete(id);
@@ -50,7 +89,8 @@ export default function NGOAccounts() {
     try {
       const accountRef = doc(db, "users", accountToDelete);
       await deleteDoc(accountRef);
-      fetchNGOAccounts(); // Re-fetch the accounts after deletion
+      // Optionally, also delete from ngo_profiles if needed.
+      fetchNGOAccounts(); // Refresh list after deletion
       closeDeleteModal();
     } catch (error) {
       console.error("Error deleting account:", error);
@@ -58,9 +98,10 @@ export default function NGOAccounts() {
     }
   };
 
-  // Toggle dropdown visibility
-  const toggleDropdown = () => {
-    setDropdownOpen(prevState => !prevState);
+  // Handle logout: clear localStorage and redirect to home
+  const handleLogout = () => {
+    localStorage.removeItem('username');
+    router.push('/');
   };
 
   return (
@@ -72,20 +113,20 @@ export default function NGOAccounts() {
           <Link href="/dashboard" className="text-white hover:underline">Dashboard</Link>
           <Link href="/ngo-accounts" className="text-white hover:underline">NGO Accounts</Link>
           <Link href="/volunteer-accounts" className="text-white hover:underline">Volunteer Accounts</Link>
-
-          {/* Profile Dropdown */}
-          <div className="relative">
-            <button onClick={toggleDropdown} className="flex items-center space-x-2">
-              <img src="https://www.w3schools.com/w3images/avatar2.png"  alt="Profile" className="w-8 h-8 rounded-full" />
-              <span>{username}</span>
-            </button>
-            {/* Dropdown Menu */}
-            {dropdownOpen && (
-              <div className="absolute right-0 mt-2 bg-white text-black rounded-lg shadow-lg w-48">
-                <div className="py-2 px-4">{username}</div>
-                <div className="py-2 px-4 cursor-pointer hover:bg-gray-200" onClick={handleLogout}>Logout</div>
-              </div>
-            )}
+          <button 
+            className="text-white hover:underline"
+            onClick={handleLogout}
+          >
+            Logout
+          </button>
+          {/* Profile Display */}
+          <div className="flex items-center space-x-2">
+            <img 
+              src="https://www.w3schools.com/w3images/avatar2.png" 
+              alt="Profile" 
+              className="w-8 h-8 rounded-full" 
+            />
+            <span>{username}</span>
           </div>
         </div>
       </nav>
@@ -94,24 +135,38 @@ export default function NGOAccounts() {
       <div className="p-6">
         <h2 className="text-2xl font-semibold mb-6">NGO Accounts</h2>
 
+        {/* Search Filter */}
+        <div className="mb-4">
+          <input 
+            type="text" 
+            placeholder="Search by Organization Name, Email, or ID" 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="border p-2 w-full rounded"
+          />
+        </div>
+
         {/* NGO Accounts Table */}
         <table className="table-auto w-full">
           <thead>
             <tr>
               <th className="px-4 py-2">ID</th>
               <th className="px-4 py-2">Email</th>
+              <th className="px-4 py-2">Organization Name</th>
               <th className="px-4 py-2">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {ngoAccounts.map(account => (
+            {filteredAccounts.map(account => (
               <tr key={account.id}>
                 <td className="border px-4 py-2">{account.id}</td>
                 <td className="border px-4 py-2">{account.email}</td>
+                <td className="border px-4 py-2">{account.organizationName}</td>
                 <td className="border px-4 py-2">
                   <button 
                     onClick={() => openDeleteModal(account.id)} 
-                    className="text-red-500 hover:underline">
+                    className="text-red-500 hover:underline"
+                  >
                     Delete
                   </button>
                 </td>
@@ -129,12 +184,14 @@ export default function NGOAccounts() {
             <div className="flex justify-between">
               <button 
                 onClick={deleteAccount} 
-                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+              >
                 Confirm
               </button>
               <button 
                 onClick={closeDeleteModal} 
-                className="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400">
+                className="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400"
+              >
                 Cancel
               </button>
             </div>
