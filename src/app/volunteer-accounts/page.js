@@ -1,7 +1,7 @@
-'use client';
+'use client'; 
 import { useEffect, useState } from "react";
 import { db } from "../FirebaseProvider";
-import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, getDoc, deleteDoc } from "firebase/firestore";
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -39,19 +39,38 @@ export default function VolunteerAccounts() {
       const userData = docSnap.data();
       const volunteerId = docSnap.id;
 
-      // Fetch fullName from volunteers collection using userId
+      // Fetch additional data from volunteers collection
       const volunteerDocRef = doc(db, "volunteers", volunteerId);
       const volunteerDocSnap = await getDoc(volunteerDocRef);
 
-      let fullName = '';
+      let volunteerData = {
+        fullName: '',
+        dateOfBirth: '',
+        age: '',
+        address: '',
+        interest: '',
+        skills: {},
+      };
+
       if (volunteerDocSnap.exists()) {
-        fullName = volunteerDocSnap.data().fullName;
+        const data = volunteerDocSnap.data();
+        const dob = data.dateOfBirth && data.dateOfBirth.toDate ? data.dateOfBirth.toDate() : null;
+        const age = dob ? new Date().getFullYear() - dob.getFullYear() : 'N/A';
+
+        volunteerData = {
+          fullName: data.fullName || '',
+          dateOfBirth: dob ? dob.toISOString().split('T')[0] : 'N/A', // Convert to YYYY-MM-DD
+          age,
+          address: data.location || '',
+          interest: data.interests || '',
+          skills: data.skills || {},
+        };
       }
 
       volunteerList.push({
         id: volunteerId,
         email: userData.email,
-        fullName,
+        ...volunteerData
       });
     }
 
@@ -59,7 +78,7 @@ export default function VolunteerAccounts() {
     setFilteredAccounts(volunteerList);
   };
 
-  // Search filter: filter volunteerAccounts based on search term (fullName, email, or id)
+  // Search filter
   useEffect(() => {
     if (searchTerm.trim() === "") {
       setFilteredAccounts(volunteerAccounts);
@@ -88,7 +107,7 @@ export default function VolunteerAccounts() {
     try {
       const accountRef = doc(db, "users", accountToDelete);
       await deleteDoc(accountRef);
-      fetchVolunteerAccounts(); // Refresh list after deletion
+      fetchVolunteerAccounts();
       closeDeleteModal();
     } catch (error) {
       console.error("Error deleting account:", error);
@@ -115,18 +134,6 @@ export default function VolunteerAccounts() {
           <Link href="/ngo-accounts" className="text-white hover:underline">NGO Accounts</Link>
           <Link href="/volunteer-accounts" className="text-white hover:underline">Volunteer Accounts</Link>
           <button onClick={handleLogout} className="text-white hover:underline">Logout</button>
-          <div className="relative">
-            <button onClick={toggleDropdown} className="flex items-center space-x-2">
-              <img src="https://www.w3schools.com/w3images/avatar2.png" alt="Profile" className="w-8 h-8 rounded-full" />
-              <span>{username}</span>
-            </button>
-            {dropdownOpen && (
-              <div className="absolute right-0 mt-2 bg-white text-black rounded-lg shadow-lg w-48">
-                <div className="py-2 px-4">{username}</div>
-                <div className="py-2 px-4 cursor-pointer hover:bg-gray-200" onClick={handleLogout}>Logout</div>
-              </div>
-            )}
-          </div>
         </div>
       </nav>
 
@@ -146,53 +153,61 @@ export default function VolunteerAccounts() {
         </div>
 
         {/* Volunteer Accounts Table */}
-        <table className="table-auto w-full">
-          <thead>
-            <tr>
-              <th className="px-4 py-2">ID</th>
-              <th className="px-4 py-2">Email</th>
-              <th className="px-4 py-2">Full Name</th>
-              <th className="px-4 py-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredAccounts.map(account => (
-              <tr key={account.id}>
-                <td className="border px-4 py-2">{account.id}</td>
-                <td className="border px-4 py-2">{account.email}</td>
-                <td className="border px-4 py-2">{account.fullName}</td>
-                <td className="border px-4 py-2">
-                  <button 
-                    onClick={() => openDeleteModal(account.id)} 
-                    className="text-red-500 hover:underline"
-                  >
-                    Delete
-                  </button>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="table-auto w-full border-collapse border border-gray-300">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border px-4 py-2">ID</th>
+                <th className="border px-4 py-2">Email</th>
+                <th className="border px-4 py-2">Full Name</th>
+                <th className="border px-4 py-2">Date of Birth</th>
+                <th className="border px-4 py-2">Age</th>
+                <th className="border px-4 py-2">Address</th>
+                <th className="border px-4 py-2">Interest</th>
+                <th className="border px-4 py-2">Skills</th>
+                <th className="border px-4 py-2">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filteredAccounts.map(account => (
+                <tr key={account.id}>
+                  <td className="border px-4 py-2">{account.id}</td>
+                  <td className="border px-4 py-2">{account.email}</td>
+                  <td className="border px-4 py-2">{account.fullName}</td>
+                  <td className="border px-4 py-2">{account.dateOfBirth || 'N/A'}</td>
+                  <td className="border px-4 py-2">{account.age}</td>
+                  <td className="border px-4 py-2">{account.address || 'N/A'}</td>
+                  <td className="border px-4 py-2">{account.interest || 'N/A'}</td>
+                  <td className="border px-4 py-2">
+                    {Object.entries(account.skills).map(([category, skills]) => (
+                      <div key={category}>
+                        <strong>{category}:</strong> {skills.join(", ")}
+                      </div>
+                    ))}
+                  </td>
+                  <td className="border px-4 py-2">
+                    <button 
+                      onClick={() => openDeleteModal(account.id)} 
+                      className="text-red-500 hover:underline"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Confirmation Modal */}
       {isDeleteModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full">
+          <div className="bg-white p-6 rounded-lg shadow-lg">
             <h3 className="text-xl font-semibold mb-4">Are you sure you want to delete this account?</h3>
             <div className="flex justify-between">
-              <button 
-                onClick={deleteAccount} 
-                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-              >
-                Confirm
-              </button>
-              <button 
-                onClick={closeDeleteModal} 
-                className="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400"
-              >
-                Cancel
-              </button>
+              <button onClick={deleteAccount} className="bg-red-500 text-white px-4 py-2 rounded">Confirm</button>
+              <button onClick={closeDeleteModal} className="bg-gray-300 text-black px-4 py-2 rounded">Cancel</button>
             </div>
           </div>
         </div>

@@ -35,20 +35,31 @@ export default function NGOAccounts() {
   }, []);
 
   // Fetch NGO accounts from the "users" collection where role == "ngo"
-  // Then, for each account, fetch the corresponding organizationName from "ngo_profiles"
+  // Then, for each account, fetch its organization name from "ngo_profiles"
   const fetchNGOAccounts = async () => {
     const usersRef = collection(db, "users");
     const ngoQuery = query(usersRef, where("role", "==", "ngo"));
     const ngoSnapshot = await getDocs(ngoQuery);
 
-    // Map each account and fetch its organization name from ngo_profiles using the document id
+    // Map each account and fetch its organization name and other details from ngo_profiles using the document id
     const ngoList = await Promise.all(
       ngoSnapshot.docs.map(async (docSnap) => {
         const account = { id: docSnap.id, ...docSnap.data() };
         const profileRef = doc(db, "ngo_profiles", account.id);
         const profileSnap = await getDoc(profileRef);
+
         const organizationName = profileSnap.exists() ? profileSnap.data().organizationName : "N/A";
-        return { ...account, organizationName };
+        const officeAddress = profileSnap.exists() ? profileSnap.data().officeAddress || "N/A" : "N/A";
+        const areasOfOperation = profileSnap.exists() ? profileSnap.data().areasOfOperation || "N/A" : "N/A";
+        const targetBeneficiaries = profileSnap.exists() ? profileSnap.data().targetBeneficiaries || "N/A" : "N/A";
+
+        return { 
+          ...account, 
+          organizationName, 
+          officeAddress, 
+          areasOfOperation, 
+          targetBeneficiaries 
+        };
       })
     );
     setNgoAccounts(ngoList);
@@ -153,6 +164,9 @@ export default function NGOAccounts() {
               <th className="px-4 py-2">ID</th>
               <th className="px-4 py-2">Email</th>
               <th className="px-4 py-2">Organization Name</th>
+              <th className="px-4 py-2">Office Address</th>
+              <th className="px-4 py-2">Areas of Operation</th>
+              <th className="px-4 py-2">Target Beneficiaries</th>
               <th className="px-4 py-2">Actions</th>
             </tr>
           </thead>
@@ -162,6 +176,9 @@ export default function NGOAccounts() {
                 <td className="border px-4 py-2">{account.id}</td>
                 <td className="border px-4 py-2">{account.email}</td>
                 <td className="border px-4 py-2">{account.organizationName}</td>
+                <td className="border px-4 py-2">{account.officeAddress}</td>
+                <td className="border px-4 py-2">{account.areasOfOperation}</td>
+                <td className="border px-4 py-2">{account.targetBeneficiaries}</td>
                 <td className="border px-4 py-2">
                   <button 
                     onClick={() => openDeleteModal(account.id)} 
