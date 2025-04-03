@@ -1,9 +1,11 @@
-'use client'; 
-import { useEffect, useState } from "react";
-import { db } from "../FirebaseProvider";
-import { collection, getDocs, query, where, doc, getDoc, deleteDoc } from "firebase/firestore";
-import Link from 'next/link';
+'use client';
+import React, { useEffect, useState } from 'react';
+import { db } from '../FirebaseProvider';
+import { collection, getDocs, query, where, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
+import AdminLayout from '@/components/layout/AdminLayout';
+import { Users, Search, Trash2, Edit, Mail, Award, ChevronDown, ChevronUp } from 'lucide-react';
+import { ExpandableCard, ExpandableCardContent } from '@/components/ui/expandable-card';
 
 export default function VolunteerAccounts() {
   const [volunteerAccounts, setVolunteerAccounts] = useState([]);
@@ -13,6 +15,7 @@ export default function VolunteerAccounts() {
   const [accountToDelete, setAccountToDelete] = useState(null);
   const [username, setUsername] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [expandedRows, setExpandedRows] = useState({});
   const router = useRouter();
 
   // Get username from localStorage
@@ -124,79 +127,186 @@ export default function VolunteerAccounts() {
     router.push('/');
   };
 
-  return (
-    <div className="flex flex-col h-screen">
-      {/* Navbar */}
-      <nav className="flex justify-between items-center bg-blue-600 p-4 text-white">
-        <div className="text-xl">Admin Dashboard</div>
-        <div className="flex items-center space-x-4">
-          <Link href="/dashboard" className="text-white hover:underline">Dashboard</Link>
-          <Link href="/ngo-accounts" className="text-white hover:underline">NGO Accounts</Link>
-          <Link href="/volunteer-accounts" className="text-white hover:underline">Volunteer Accounts</Link>
-          <button onClick={handleLogout} className="text-white hover:underline">Logout</button>
-        </div>
-      </nav>
+  const toggleRowExpand = (id) => {
+    setExpandedRows(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
 
-      {/* Main Content */}
-      <div className="p-6">
-        <h2 className="text-2xl font-semibold mb-6">Volunteer Accounts</h2>
+  return (
+    <AdminLayout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold tracking-tight">Volunteer Accounts</h1>
+          <button 
+            onClick={() => fetchVolunteerAccounts()} 
+            className="px-4 py-2 text-sm bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
+          >
+            Refresh Data
+          </button>
+        </div>
 
         {/* Search Filter */}
-        <div className="mb-4">
-          <input
-            type="text"
-            placeholder="Search by Full Name, Email, or ID"
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+            <Search className="h-4 w-4 text-gray-400" />
+          </div>
+          <input 
+            type="text" 
+            placeholder="Search by Full Name, Email, or ID" 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="border p-2 w-full rounded"
+            className="pl-10 block w-full rounded-md border border-gray-200 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           />
         </div>
 
         {/* Volunteer Accounts Table */}
-        <div className="overflow-x-auto">
-          <table className="table-auto w-full border-collapse border border-gray-300">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="border px-4 py-2">ID</th>
-                <th className="border px-4 py-2">Email</th>
-                <th className="border px-4 py-2">Full Name</th>
-                <th className="border px-4 py-2">Date of Birth</th>
-                <th className="border px-4 py-2">Age</th>
-                <th className="border px-4 py-2">Address</th>
-                <th className="border px-4 py-2">Interest</th>
-                <th className="border px-4 py-2">Skills</th>
-                <th className="border px-4 py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAccounts.map(account => (
-                <tr key={account.id}>
-                  <td className="border px-4 py-2">{account.id}</td>
-                  <td className="border px-4 py-2">{account.email}</td>
-                  <td className="border px-4 py-2">{account.fullName}</td>
-                  <td className="border px-4 py-2">{account.dateOfBirth || 'N/A'}</td>
-                  <td className="border px-4 py-2">{account.age}</td>
-                  <td className="border px-4 py-2">{account.address || 'N/A'}</td>
-                  <td className="border px-4 py-2">{account.interest || 'N/A'}</td>
-                  <td className="border px-4 py-2">
-                    {Object.entries(account.skills).map(([category, skills]) => (
-                      <div key={category}>
-                        <strong>{category}:</strong> {skills.join(", ")}
-                      </div>
-                    ))}
-                  </td>
-                  <td className="border px-4 py-2">
-                    <button 
-                      onClick={() => openDeleteModal(account.id)} 
-                      className="text-red-500 hover:underline"
-                    >
-                      Delete
-                    </button>
-                  </td>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 dark:bg-gray-700 text-xs uppercase">
+                <tr>
+                  <th className="px-6 py-3 text-left text-gray-500 dark:text-gray-400">Expand</th>
+                  <th className="px-6 py-3 text-left text-gray-500 dark:text-gray-400">ID</th>
+                  <th className="px-6 py-3 text-left text-gray-500 dark:text-gray-400">Email</th>
+                   <th className="px-6 py-3 text-left text-gray-500 dark:text-gray-400">Full Name</th>
+                  <th className="px-6 py-3 text-left text-gray-500 dark:text-gray-400">Status</th>
+                  <th className="px-6 py-3 text-left text-gray-500 dark:text-gray-400">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {filteredAccounts.length > 0 ? (
+                  filteredAccounts.map(account => (
+                    <React.Fragment key={account.id}>
+                      <tr 
+        className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
+        onClick={() => toggleRowExpand(account.id)}
+      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <div className="flex items-center justify-center">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleRowExpand(account.id);
+                              }}
+                              className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
+                              aria-label={expandedRows[account.id] ? "Collapse row" : "Expand row"}
+                            >
+                              {expandedRows[account.id] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {account.id.substring(0, 8)}...
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">{account.email}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">{account.fullName}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                            Active
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <div className="flex space-x-2">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDeleteModal(account.id);
+                              }} 
+                              className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50"
+                              title="Delete Account"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                            <button 
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-blue-500 hover:text-blue-700 p-1 rounded-full hover:bg-blue-50"
+                              title="Edit Account"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button 
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-purple-500 hover:text-purple-700 p-1 rounded-full hover:bg-purple-50"
+                              title="View Achievements"
+                            >
+                              <Award size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {expandedRows[account.id] && (
+                        <tr className="bg-gray-50 dark:bg-gray-800/50">
+                          <td colSpan="6" className="px-6 py-4">
+                            <ExpandableCard 
+                              title="Volunteer Details" 
+                              defaultExpanded={true} 
+                              className="border-0 shadow-none"
+                            >
+                              <ExpandableCardContent>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500 mb-1">Full Name</p>
+                                    <p className="text-sm">{account.fullName || 'N/A'}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500 mb-1">Email</p>
+                                    <p className="text-sm">{account.email || 'N/A'}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500 mb-1">Age</p>
+                                    <p className="text-sm">{account.age || 'N/A'}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500 mb-1">Date of Birth</p>
+                                    <p className="text-sm">{account.dateOfBirth || 'N/A'}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500 mb-1">Address</p>
+                                    <p className="text-sm">{account.address || 'N/A'}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500 mb-1">Interest</p>
+                                    <p className="text-sm">{account.interest || 'N/A'}</p>
+                                  </div>
+                                  <div className="md:col-span-2">
+                                    <p className="text-sm font-medium text-gray-500 mb-2">Skills</p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                      {Object.keys(account.skills || {}).length > 0 ? (
+                                        Object.entries(account.skills).map(([category, skills]) => (
+                                          <div key={category} className="bg-gray-100 dark:bg-gray-700 p-2 rounded">
+                                            <p className="font-medium text-sm">{category}</p>
+                                            <p className="text-sm">{skills.join(", ")}</p>
+                                          </div>
+                                        ))
+                                      ) : (
+                                        <p className="text-sm text-gray-500">No skills listed</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500 mb-1">Account ID</p>
+                                    <p className="text-sm">{account.id || 'N/A'}</p>
+                                  </div>
+                                </div>
+                              </ExpandableCardContent>
+                            </ExpandableCard>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="8" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                      No volunteer accounts found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -212,6 +322,6 @@ export default function VolunteerAccounts() {
           </div>
         </div>
       )}
-    </div>
+     </AdminLayout>
   );
 }

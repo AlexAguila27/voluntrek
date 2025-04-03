@@ -1,6 +1,6 @@
 'use client';
-import { useEffect, useState } from "react";
-import { db } from "../FirebaseProvider";
+import React, { useEffect, useState } from 'react';
+import { db } from '../FirebaseProvider';
 import { 
   collection, 
   getDocs, 
@@ -9,9 +9,11 @@ import {
   deleteDoc, 
   doc, 
   getDoc 
-} from "firebase/firestore";
-import Link from 'next/link';
+} from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
+import AdminLayout from '@/components/layout/AdminLayout';
+import { Building2, Search, Trash2, Edit, Mail, ChevronDown, ChevronUp } from 'lucide-react';
+import { ExpandableCard, ExpandableCardContent } from '@/components/ui/expandable-card';
 
 export default function NGOAccounts() {
   const [ngoAccounts, setNgoAccounts] = useState([]);
@@ -20,6 +22,7 @@ export default function NGOAccounts() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState(null);
   const [username, setUsername] = useState("");
+  const [expandedRows, setExpandedRows] = useState({});
   const router = useRouter();
 
   // Get username from localStorage
@@ -49,9 +52,12 @@ export default function NGOAccounts() {
         const profileSnap = await getDoc(profileRef);
 
         const organizationName = profileSnap.exists() ? profileSnap.data().organizationName : "N/A";
-        const officeAddress = profileSnap.exists() ? profileSnap.data().officeAddress || "N/A" : "N/A";
-        const areasOfOperation = profileSnap.exists() ? profileSnap.data().areasOfOperation || "N/A" : "N/A";
-        const targetBeneficiaries = profileSnap.exists() ? profileSnap.data().targetBeneficiaries || "N/A" : "N/A";
+        // Extract address from location object if it exists
+        // Check both 'location' and 'officeLocation' fields since the data structure might vary
+        const location = profileSnap.exists() ? profileSnap.data().location || profileSnap.data().officeLocation : null;
+        const officeAddress = location && location.address ? location.address : "N/A";
+        const areasOfOperation = profileSnap.exists() ? profileSnap.data().areasOfOperation || [] : [];
+        const targetBeneficiaries = profileSnap.exists() ? profileSnap.data().targetBeneficiaries || [] : [];
 
         return { 
           ...account, 
@@ -115,82 +121,163 @@ export default function NGOAccounts() {
     router.push('/');
   };
 
-  return (
-    <div className="flex flex-col h-screen">
-      {/* Navbar */}
-      <nav className="flex justify-between items-center bg-blue-600 p-4 text-white">
-        <div className="text-xl">Admin Dashboard</div>
-        <div className="flex items-center space-x-4">
-          <Link href="/dashboard" className="text-white hover:underline">Dashboard</Link>
-          <Link href="/ngo-accounts" className="text-white hover:underline">NGO Accounts</Link>
-          <Link href="/volunteer-accounts" className="text-white hover:underline">Volunteer Accounts</Link>
-          <button 
-            className="text-white hover:underline"
-            onClick={handleLogout}
-          >
-            Logout
-          </button>
-          {/* Profile Display */}
-          <div className="flex items-center space-x-2">
-            <img 
-              src="https://www.w3schools.com/w3images/avatar2.png" 
-              alt="Profile" 
-              className="w-8 h-8 rounded-full" 
-            />
-            <span>{username}</span>
-          </div>
-        </div>
-      </nav>
+  const toggleRowExpand = (id) => {
+    setExpandedRows(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
 
-      {/* Main Content */}
-      <div className="p-6">
-        <h2 className="text-2xl font-semibold mb-6">NGO Accounts</h2>
+  return (
+    <AdminLayout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold tracking-tight">NGO Accounts</h1>
+          <button 
+            onClick={() => fetchNGOAccounts()} 
+            className="px-4 py-2 text-sm bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
+          >
+            Refresh Data
+          </button>
+        </div>
 
         {/* Search Filter */}
-        <div className="mb-4">
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+            <Search className="h-4 w-4 text-gray-400" />
+          </div>
           <input 
             type="text" 
             placeholder="Search by Organization Name, Email, or ID" 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="border p-2 w-full rounded"
+            className="pl-10 block w-full rounded-md border border-gray-200 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           />
         </div>
 
         {/* NGO Accounts Table */}
-        <table className="table-auto w-full">
-          <thead>
-            <tr>
-              <th className="px-4 py-2">ID</th>
-              <th className="px-4 py-2">Email</th>
-              <th className="px-4 py-2">Organization Name</th>
-              <th className="px-4 py-2">Office Address</th>
-              <th className="px-4 py-2">Areas of Operation</th>
-              <th className="px-4 py-2">Target Beneficiaries</th>
-              <th className="px-4 py-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredAccounts.map(account => (
-              <tr key={account.id}>
-                <td className="border px-4 py-2">{account.id}</td>
-                <td className="border px-4 py-2">{account.email}</td>
-                <td className="border px-4 py-2">{account.organizationName}</td>
-                <td className="border px-4 py-2">{account.officeAddress}</td>
-                <td className="border px-4 py-2">{account.areasOfOperation}</td>
-                <td className="border px-4 py-2">{account.targetBeneficiaries}</td>
-                <td className="border px-4 py-2">
-                  <button 
-                    onClick={() => openDeleteModal(account.id)} 
-                    className="text-red-500 hover:underline"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full transition-all duration-300">
+              <thead className="bg-gray-50 dark:bg-gray-700 text-xs uppercase">
+                <tr>
+                  <th className="px-6 py-3 text-left text-gray-500 dark:text-gray-400 w-12"></th>
+                  <th className="px-6 py-3 text-left text-gray-500 dark:text-gray-400">Organization</th>
+                  <th className="px-6 py-3 text-left text-gray-500 dark:text-gray-400">Email</th>
+                  <th className="px-6 py-3 text-left text-gray-500 dark:text-gray-400">Status</th>
+                  <th className="px-6 py-3 text-left text-gray-500 dark:text-gray-400">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {filteredAccounts.length > 0 ? (
+                  filteredAccounts.map(account => (
+                    <React.Fragment key={account.id}>
+                      <tr 
+                        className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-all duration-200"
+                        onClick={() => toggleRowExpand(account.id)}
+                      >
+                        <td className="px-6 py-4 text-center">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleRowExpand(account.id);
+                            }}
+                            className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
+                            aria-label={expandedRows[account.id] ? "Collapse row" : "Expand row"}
+                          >
+                            {expandedRows[account.id] ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-8 w-8 bg-indigo-100 rounded-full flex items-center justify-center">
+                              <Building2 className="h-4 w-4 text-indigo-600" />
+                            </div>
+                            <div className="ml-3">
+                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{account.organizationName}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">ID: {account.id.substring(0, 8)}...</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">{account.email}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                            Active
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex space-x-2">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDeleteModal(account.id);
+                              }} 
+                              className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50"
+                              title="Delete Account"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                            <button 
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-blue-500 hover:text-blue-700 p-1 rounded-full hover:bg-blue-50"
+                              title="Edit Account"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button 
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-green-500 hover:text-green-700 p-1 rounded-full hover:bg-green-50"
+                              title="Send Email"
+                            >
+                              <Mail size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {expandedRows[account.id] && (
+                        <tr className="bg-gray-50 dark:bg-gray-800/50">
+                          <td colSpan="5" className="px-6 py-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm">
+                                <h4 className="text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Office Address</h4>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">{account.officeAddress || 'N/A'}</p>
+                              </div>
+                              <div className="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm">
+                                <h4 className="text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Areas of Operation</h4>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                  {Array.isArray(account.areasOfOperation) 
+                                    ? account.areasOfOperation.join(', ') 
+                                    : account.areasOfOperation || 'N/A'}
+                                </p>
+                              </div>
+                              <div className="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm">
+                                <h4 className="text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Target Beneficiaries</h4>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                  {Array.isArray(account.targetBeneficiaries) 
+                                    ? account.targetBeneficiaries.join(', ') 
+                                    : account.targetBeneficiaries || 'N/A'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                              <span className="font-medium">Account ID:</span> {account.id}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                      No NGO accounts found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {/* Confirmation Modal */}
@@ -215,6 +302,6 @@ export default function NGOAccounts() {
           </div>
         </div>
       )}
-    </div>
+    </AdminLayout>
   );
 }
