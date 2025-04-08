@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { db } from '../FirebaseProvider';
+import { db, auth } from '../FirebaseProvider';
 import { collection, getDocs, query, where, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '@/components/layout/AdminLayout';
@@ -53,6 +53,7 @@ export default function VolunteerAccounts() {
         address: '',
         interest: '',
         skills: {},
+        email: '', // Initialize email field
       };
 
       if (volunteerDocSnap.exists()) {
@@ -67,12 +68,17 @@ export default function VolunteerAccounts() {
           address: data.location || '',
           interest: data.interests || '',
           skills: data.skills || {},
+          email: data.email || '', // Get email from volunteer document if available
         };
       }
 
+      // Prioritize email from users collection (auth data) if available
+      // Otherwise, use the email from volunteer document as fallback
+      const email = userData.email || volunteerData.email || 'No email available';
+
       volunteerList.push({
         id: volunteerId,
-        email: userData.email,
+        email: email,
         ...volunteerData
       });
     }
@@ -200,7 +206,7 @@ export default function VolunteerAccounts() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           {account.id.substring(0, 8)}...
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">{account.email}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">{account.email || 'No email available'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">{account.fullName}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
@@ -252,7 +258,7 @@ export default function VolunteerAccounts() {
                                   </div>
                                   <div>
                                     <p className="text-sm font-medium text-gray-500 mb-1">Email</p>
-                                    <p className="text-sm">{account.email || 'N/A'}</p>
+                                    <p className="text-sm">{account.email || 'No email available'}</p>
                                   </div>
                                   <div>
                                     <p className="text-sm font-medium text-gray-500 mb-1">Age</p>

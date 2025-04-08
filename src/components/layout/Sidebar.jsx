@@ -79,11 +79,11 @@ export default function Sidebar() {
       href: '/volunteer-accounts',
       icon: <Users size={20} />
     },
-    {
+   /**  {
       name: 'Events Management',
       href: '/events-management',
       icon: <CalendarCheck size={20} />
-    }
+    }*/
   ];
 
   const sidebarClasses = cn(

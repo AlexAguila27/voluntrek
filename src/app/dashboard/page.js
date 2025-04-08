@@ -352,33 +352,35 @@ export default function Dashboard() {
                   </div>
 
                   {/* Quick Actions */}
+                 
                   <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
                     <h3 className="text-lg font-medium mb-4">Quick Actions</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <button 
-                        onClick={() => router.push('/ngo-approval')} 
-                        className="p-4 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 rounded-lg flex items-center space-x-3 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors"
+                       // onClick={() => router.push('/ngo-approval')} 
+                      //  className="p-4 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 rounded-lg flex items-center space-x-3 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors"
                       >
                         <CheckSquare size={24} />
                         <span>NGO Approvals</span>
                       </button>
                       <button 
-                        onClick={() => router.push('/events-management')} 
-                        className="p-4 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 rounded-lg flex items-center space-x-3 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+                      //  onClick={() => router.push('/events-management')} 
+                      //  className="p-4 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 rounded-lg flex items-center space-x-3 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
                       >
+                       
                         <Calendar size={24} />
-                        <span>Manage Events</span>
+                      <span>Manage Events</span>
                       </button>
                       <button 
-                        onClick={() => router.push('/volunteer-accounts')} 
-                        className="p-4 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 rounded-lg flex items-center space-x-3 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+                       // onClick={() => router.push('/volunteer-accounts')} 
+                       // className="p-4 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 rounded-lg flex items-center space-x-3 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
                       >
                         <Users size={24} />
                         <span>Volunteer Accounts</span>
                       </button>
                       <button 
-                        onClick={() => router.push('/ngo-accounts')} 
-                        className="p-4 bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-300 rounded-lg flex items-center space-x-3 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors"
+                       // onClick={() => router.push('/ngo-accounts')} 
+                       // className="p-4 bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-300 rounded-lg flex items-center space-x-3 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors"
                       >
                         <Building2 size={24} />
                         <span>NGO Accounts</span>
